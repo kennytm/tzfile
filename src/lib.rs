@@ -5,11 +5,13 @@
 use byteorder::{ByteOrder, BE};
 use chrono::{FixedOffset, LocalResult, NaiveDate, NaiveDateTime, TimeZone};
 use std::cmp::Ordering;
+#[cfg(unix)]
 use std::env;
 use std::error;
 use std::fmt;
+#[cfg(unix)]
 use std::fs::read;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::io;
 use std::mem::size_of;
 use std::ops::Deref;
@@ -53,6 +55,7 @@ impl Oz {
 /// Read the time zone information from the system, and use `&Tz` as `TimeZone`.
 ///
 /// ```
+/// # #[cfg(unix)] {
 /// use chrono::{Utc, TimeZone};
 /// use tzfile::Tz;
 ///
@@ -62,9 +65,9 @@ impl Oz {
 /// let dt2 = Utc.ymd(2019, 3, 10).and_hms(7, 15, 0);
 /// assert_eq!(dt2.with_timezone(&&tz).to_string(), "2019-03-10 03:15:00 EDT");
 ///
-/// # Ok::<_, std::io::Error>(())
+/// # } Ok::<_, std::io::Error>(())
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Tz {
     /// Null-terminated time zone abbreviations concatenated as a single string.
     names: Box<str>,
@@ -76,42 +79,6 @@ pub struct Tz {
     /// tuple is the starting local timestamp, and second item is the
     /// corresponding local offset (with ambiguity/invalid time handling).
     local_to_utc: Box<[(i64, LocalResult<Oz>)]>,
-}
-
-// FIXME: Derive these once chrono 0.4.7 is released to impl Eq, Hash for LocalResult.
-impl PartialEq for Tz {
-    fn eq(&self, other: &Self) -> bool {
-        self.names == other.names
-            && self.utc_to_local == other.utc_to_local
-            && self.local_to_utc == other.local_to_utc
-    }
-}
-
-impl Eq for Tz {}
-
-impl Hash for Tz {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.names.hash(state);
-        self.utc_to_local.hash(state);
-        self.local_to_utc.len().hash(state);
-        self.local_to_utc.iter().for_each(|(ts, res)| {
-            ts.hash(state);
-            match res {
-                LocalResult::None => {
-                    0u8.hash(state);
-                }
-                LocalResult::Single(a) => {
-                    1u8.hash(state);
-                    a.hash(state);
-                }
-                LocalResult::Ambiguous(a, b) => {
-                    2u8.hash(state);
-                    a.hash(state);
-                    b.hash(state);
-                }
-            }
-        });
-    }
 }
 
 /// Extracts the lower bound index from the result of standard `binary_search`.
@@ -136,7 +103,7 @@ impl Tz {
             self.local_to_utc
                 .binary_search_by(|&(local, _)| local.cmp(&local_ts)),
         );
-        self.local_to_utc[index].1.clone()
+        self.local_to_utc[index].1
     }
 
     /// Obtains the [`Oz`] at the UTC timestamp.
@@ -481,12 +448,13 @@ impl Tz {
     /// Read a file into bytes and then parse it.
     ///
     /// ```rust
+    /// # #[cfg(unix)] {
     /// use tzfile::Tz;
     ///
     /// let content = std::fs::read("/usr/share/zoneinfo/Etc/UTC")?;
-    /// let tz = Tz::parse(&content)?;
+    /// let tz = Tz::parse("Etc/UTC", &content)?;
     ///
-    /// # Ok::<_, Box<std::error::Error>>(())
+    /// # } Ok::<_, Box<dyn std::error::Error>>(())
     /// ```
     pub fn parse(_name: &str, source: &[u8]) -> Result<Self, Error> {
         let header = Header::parse(source)?;
@@ -683,6 +651,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn invalid_timezone_filename() {
         let err = Tz::named("../../../../../../../../etc/passwd").unwrap_err();
         assert_eq!(err.kind(), std::io::ErrorKind::Other);
@@ -707,6 +676,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn local() {
         let tz = Tz::local().unwrap();
         let dt = (&tz).ymd(2019, 2, 13).and_hms(14, 5, 18);
