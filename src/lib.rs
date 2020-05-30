@@ -175,6 +175,12 @@ impl Deref for RcTz {
     }
 }
 
+impl From<Tz> for RcTz {
+    fn from(tz: Tz) -> Self {
+        Self::new(tz)
+    }
+}
+
 /// Atomic reference-counted time zone.
 ///
 /// This type is equivalent to [`Arc`]`<`[`Tz`]`>`, but needed to workaround
@@ -205,6 +211,12 @@ impl Deref for ArcTz {
     type Target = Tz;
     fn deref(&self) -> &Tz {
         &self.0
+    }
+}
+
+impl From<Tz> for ArcTz {
+    fn from(tz: Tz) -> Self {
+        Self::new(tz)
     }
 }
 
