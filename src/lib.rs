@@ -327,6 +327,8 @@ impl From<Error> for io::Error {
 static MAGIC: [u8; 4] = *b"TZif";
 
 struct Header {
+    tzh_ttisgmtcnt: usize,
+    tzh_ttisstdcnt: usize,
     tzh_leapcnt: usize,
     tzh_timecnt: usize,
     tzh_typecnt: usize,
@@ -353,7 +355,9 @@ impl Header {
         let tzh_typecnt = BE::read_u32(&source[36..40]) as usize;
         let tzh_charcnt = BE::read_u32(&source[40..44]) as usize;
 
-        if tzh_ttisgmtcnt != tzh_typecnt || tzh_ttisstdcnt != tzh_typecnt {
+        if (tzh_ttisgmtcnt != 0 && tzh_ttisgmtcnt != tzh_typecnt)
+            || (tzh_ttisstdcnt != 0 && tzh_ttisstdcnt != tzh_typecnt)
+        {
             return Err(Error::InconsistentTypeCount);
         }
         if tzh_typecnt == 0 {
@@ -361,6 +365,8 @@ impl Header {
         }
 
         Ok(Header {
+            tzh_ttisgmtcnt,
+            tzh_ttisstdcnt,
             tzh_leapcnt,
             tzh_timecnt,
             tzh_typecnt,
@@ -374,9 +380,11 @@ impl Header {
     /// The length of the content, when `time_t` is represented by type `L`.
     fn data_len<L>(&self) -> usize {
         self.tzh_timecnt * (size_of::<L>() + 1)
-            + self.tzh_typecnt * 8
+            + self.tzh_typecnt * 6
             + self.tzh_charcnt
             + self.tzh_leapcnt * (size_of::<L>() + 4)
+            + self.tzh_ttisstdcnt
+            + self.tzh_ttisgmtcnt
     }
 
     /// Parses the time zone information from the prefix of `content`.
@@ -554,6 +562,28 @@ mod tests {
         let dt_1_converted = dt_0.with_timezone(&&fixed_1_tz);
         let dt_1_expected = (&fixed_1_tz).ymd(1000, 1, 1).and_hms(16, 0, 0);
         assert_eq!(dt_1_converted, dt_1_expected);
+    }
+
+    #[test]
+    fn parse_valid_contents() {
+        let contents: Vec<&[u8]> = vec![
+            // #0
+            b"TZif2\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x01\0\0\0\x01\0\0\0\0\0\0\0\0\0\0\0\x01\0\0\0\x04\0\0\0\0\0\0UTC\0\0\0\
+              TZif2\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x01\0\0\0\x01\0\0\0\0\0\0\0\x01\0\0\0\x01\0\0\0\x04\xF8\0\0\0\0\0\0\0\0\0\0\0\0\0\0UTC\0\0\0\nUTC0\n",
+
+            // #1
+            b"TZif2\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x01\0\0\0\x04\0\0\0\0\0\0UTC\0\
+              TZif2\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x01\0\0\0\x04\0\0\0\0\0\0UTC\0\nUTC0\n",
+        ];
+
+        for (i, content) in contents.into_iter().enumerate() {
+            assert!(
+                Tz::parse("__valid__", content).is_ok(),
+                "test #{}: should be able to parse {:x?}",
+                i,
+                content
+            );
+        }
     }
 
     #[test]
