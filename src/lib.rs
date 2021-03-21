@@ -327,6 +327,8 @@ impl From<Error> for io::Error {
 static MAGIC: [u8; 4] = *b"TZif";
 
 struct Header {
+    tzh_ttisgmtcnt: usize,
+    tzh_ttisstdcnt: usize,
     tzh_leapcnt: usize,
     tzh_timecnt: usize,
     tzh_typecnt: usize,
@@ -353,7 +355,9 @@ impl Header {
         let tzh_typecnt = BE::read_u32(&source[36..40]) as usize;
         let tzh_charcnt = BE::read_u32(&source[40..44]) as usize;
 
-        if tzh_ttisgmtcnt != tzh_typecnt || tzh_ttisstdcnt != tzh_typecnt {
+        if (tzh_ttisgmtcnt != 0 && tzh_ttisgmtcnt != tzh_typecnt)
+            || (tzh_ttisstdcnt != 0 && tzh_ttisstdcnt != tzh_typecnt)
+        {
             return Err(Error::InconsistentTypeCount);
         }
         if tzh_typecnt == 0 {
@@ -361,6 +365,8 @@ impl Header {
         }
 
         Ok(Header {
+            tzh_ttisgmtcnt,
+            tzh_ttisstdcnt,
             tzh_leapcnt,
             tzh_timecnt,
             tzh_typecnt,
@@ -374,9 +380,11 @@ impl Header {
     /// The length of the content, when `time_t` is represented by type `L`.
     fn data_len<L>(&self) -> usize {
         self.tzh_timecnt * (size_of::<L>() + 1)
-            + self.tzh_typecnt * 8
+            + self.tzh_typecnt * 6
             + self.tzh_charcnt
             + self.tzh_leapcnt * (size_of::<L>() + 4)
+            + self.tzh_ttisstdcnt
+            + self.tzh_ttisgmtcnt
     }
 
     /// Parses the time zone information from the prefix of `content`.
