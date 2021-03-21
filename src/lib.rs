@@ -557,6 +557,28 @@ mod tests {
     }
 
     #[test]
+    fn parse_valid_contents() {
+        let contents: Vec<&[u8]> = vec![
+            // #0
+            b"TZif2\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x01\0\0\0\x01\0\0\0\0\0\0\0\0\0\0\0\x01\0\0\0\x04\0\0\0\0\0\0UTC\0\0\0\
+              TZif2\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x01\0\0\0\x01\0\0\0\0\0\0\0\x01\0\0\0\x01\0\0\0\x04\xF8\0\0\0\0\0\0\0\0\0\0\0\0\0\0UTC\0\0\0\nUTC0\n",
+
+            // #1
+            b"TZif2\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x01\0\0\0\x04\0\0\0\0\0\0UTC\0\
+              TZif2\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x01\0\0\0\x04\0\0\0\0\0\0UTC\0\nUTC0\n",
+        ];
+
+        for (i, content) in contents.into_iter().enumerate() {
+            assert!(
+                Tz::parse("__valid__", content).is_ok(),
+                "test #{}: should be able to parse {:x?}",
+                i,
+                content
+            );
+        }
+    }
+
+    #[test]
     fn parse_invalid_contents() {
         let contents: Vec<(&[u8], Error)> = vec![
             (
