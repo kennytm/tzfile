@@ -1,6 +1,11 @@
 tzfile
 ======
 
+[![Crates.io](https://img.shields.io/crates/v/tzfile.svg)](https://crates.io/crates/tzfile)
+[![docs.rs](https://docs.rs/tzfile/badge.svg)](https://docs.rs/tzfile)
+[![Build status](https://github.com/kennytm/tzfile/workflows/Rust/badge.svg)](https://github.com/kennytm/tzfile/actions?query=workflow%3ARust)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE.txt)
+
 `tzfile` is a `chrono::TimeZone` implementation using the system [tz database].
 It can parse compiled (binary) time zone files inside `/usr/share/zoneinfo` into
 time zone objects for [`chrono`].
