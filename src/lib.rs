@@ -241,7 +241,10 @@ macro_rules! implements_time_zone {
 
         fn offset_from_local_date(&self, local: &NaiveDate) -> LocalResult<Self::Offset> {
             if let Some(oz) = self.oz_from_local_date(*local) {
-                LocalResult::Single(Offset { oz, tz: self.clone() })
+                LocalResult::Single(Offset {
+                    oz,
+                    tz: self.clone(),
+                })
             } else {
                 LocalResult::None
             }
@@ -254,7 +257,7 @@ macro_rules! implements_time_zone {
                 tz: self.clone(),
             })
         }
-    }
+    };
 }
 
 impl<'a> TimeZone for &'a Tz {
