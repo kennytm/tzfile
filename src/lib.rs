@@ -493,8 +493,9 @@ impl Tz {
 
     /// Reads and parses a system time zone.
     ///
-    /// This function is equivalent to reading `/usr/share/zoneinfo/{name}` and
-    /// the constructs a time zone via [`parse()`](Tz::parse).
+    /// This function is equivalent to reading `$TZDIR/{name}` if the environment variable `$TZDIR`
+    /// is set or `/usr/share/zoneinfo/{name}` if it isn't, then constructing a time zone via
+    /// [`parse()`](Tz::parse).
     ///
     /// This function is currently only supported on Unix.
     #[cfg(unix)]
@@ -502,7 +503,10 @@ impl Tz {
         if name.contains('.') {
             return Err(Error::InvalidTimeZoneFileName.into());
         }
-        let content = read(format!("/usr/share/zoneinfo/{}", name))?;
+        let mut path = env::var_os("TZDIR").unwrap_or_else(|| "/usr/share/zoneinfo".into());
+        path.push("/");
+        path.push(&name);
+        let content = read(path)?;
         Ok(Self::parse(name, &content)?)
     }
 
